@@ -4,313 +4,337 @@ import { Keys } from "./keys";
 import { wrapRedis } from "./redis";
 
 export class ProjectService {
-	public static contacts = {
-		get: (id: string) => {
-			return wrapRedis(Keys.Project.contacts(id), async () => {
-				return prisma.project.findUnique({ where: { id } }).contacts({
-					select: {
-						id: true,
-						email: true,
-						subscribed: true,
-						createdAt: true,
-						data: true,
-						updatedAt: true,
-						triggers: { select: { createdAt: true, eventId: true } },
-					},
-				});
-			});
-		},
+  public static contacts = {
+    get: (id: string) => {
+      return wrapRedis(Keys.Project.contacts(id), async () => {
+        return prisma.project.findUnique({ where: { id } }).contacts({
+          select: {
+            id: true,
+            email: true,
+            subscribed: true,
+            createdAt: true,
+            data: true,
+            updatedAt: true,
+            triggers: { select: { createdAt: true, eventId: true } },
+          },
+        });
+      });
+    },
 
-		paginated: (id: string, page: number) => {
-			return wrapRedis(Keys.Project.contacts(id, { page }), async () => {
-				return prisma.project.findUnique({ where: { id } }).contacts({
-					select: {
-						id: true,
-						email: true,
-						subscribed: true,
-						createdAt: true,
-						triggers: { select: { createdAt: true } },
-						emails: { select: { createdAt: true } },
-					},
-					orderBy: [{ createdAt: "desc" }],
-					take: 20,
-					skip: (page - 1) * 20,
-				});
-			});
-		},
+    paginated: (id: string, page: number) => {
+      return wrapRedis(Keys.Project.contacts(id, { page }), async () => {
+        return prisma.project.findUnique({ where: { id } }).contacts({
+          select: {
+            id: true,
+            email: true,
+            subscribed: true,
+            createdAt: true,
+            triggers: { select: { createdAt: true } },
+            emails: { select: { createdAt: true } },
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 100,
+          skip: (page - 1) * 100,
+        });
+      });
+    },
 
-		count: (id: string) => {
-			return wrapRedis(Keys.Project.contacts(id, { count: true }), async () => {
-				return prisma.contact.count({ where: { projectId: id } });
-			});
-		},
-	};
+    count: (id: string) => {
+      return wrapRedis(Keys.Project.contacts(id, { count: true }), async () => {
+        return prisma.contact.count({ where: { projectId: id } });
+      });
+    },
+  };
 
-	public static emails = {
-		get: (id: string) => {
-			return wrapRedis(Keys.Project.emails(id), async () => {
-				return prisma.email.findMany({
-					where: {
-						OR: [{ action: { projectId: id } }, { campaign: { projectId: id } }, { projectId: id }],
-					},
-					orderBy: { createdAt: "desc" },
-				});
-			});
-		},
-		count: (id: string) => {
-			return wrapRedis(Keys.Project.emails(id, { count: true }), async () => {
-				return prisma.email.count({ where: { contact: { projectId: id } } });
-			});
-		},
-	};
+  public static emails = {
+    get: (id: string) => {
+      return wrapRedis(Keys.Project.emails(id), async () => {
+        return prisma.email.findMany({
+          where: {
+            OR: [
+              { action: { projectId: id } },
+              { campaign: { projectId: id } },
+              { projectId: id },
+            ],
+          },
+          orderBy: { createdAt: "desc" },
+        });
+      });
+    },
+    count: (id: string) => {
+      return wrapRedis(Keys.Project.emails(id, { count: true }), async () => {
+        return prisma.email.count({ where: { contact: { projectId: id } } });
+      });
+    },
+  };
 
-	public static id(id: string) {
-		return wrapRedis(Keys.Project.id(id), async () => {
-			return prisma.project.findUnique({ where: { id } });
-		});
-	}
+  public static id(id: string) {
+    return wrapRedis(Keys.Project.id(id), async () => {
+      return prisma.project.findUnique({ where: { id } });
+    });
+  }
 
-	public static key(key: string) {
-		if (key.startsWith("sk_")) {
-			return ProjectService.secret(key);
-		}
-		return ProjectService.public(key);
-	}
+  public static key(key: string) {
+    if (key.startsWith("sk_")) {
+      return ProjectService.secret(key);
+    }
+    return ProjectService.public(key);
+  }
 
-	public static secret(secretKey: string) {
-		return wrapRedis(Keys.Project.secret(secretKey), () => {
-			return prisma.project.findUnique({ where: { secret: secretKey } });
-		});
-	}
+  public static secret(secretKey: string) {
+    return wrapRedis(Keys.Project.secret(secretKey), () => {
+      return prisma.project.findUnique({ where: { secret: secretKey } });
+    });
+  }
 
-	public static public(publicKey: string) {
-		return wrapRedis(Keys.Project.public(publicKey), () => {
-			return prisma.project.findUnique({ where: { public: publicKey } });
-		});
-	}
+  public static public(publicKey: string) {
+    return wrapRedis(Keys.Project.public(publicKey), () => {
+      return prisma.project.findUnique({ where: { public: publicKey } });
+    });
+  }
 
-	public static async secretIsAvailable(secretKey: string) {
-		const project = await ProjectService.secret(secretKey);
+  public static async secretIsAvailable(secretKey: string) {
+    const project = await ProjectService.secret(secretKey);
 
-		return !project;
-	}
+    return !project;
+  }
 
-	public static async publicIsAvailable(publicKey: string) {
-		const project = await ProjectService.public(publicKey);
+  public static async publicIsAvailable(publicKey: string) {
+    const project = await ProjectService.public(publicKey);
 
-		return !project;
-	}
+    return !project;
+  }
 
-	public static memberships(id: string) {
-		return wrapRedis(Keys.Project.memberships(id), async () => {
-			const memberships = await prisma.project.findUnique({ where: { id } }).memberships({ include: { user: true } });
+  public static memberships(id: string) {
+    return wrapRedis(Keys.Project.memberships(id), async () => {
+      const memberships = await prisma.project
+        .findUnique({ where: { id } })
+        .memberships({ include: { user: true } });
 
-			if (!memberships) {
-				return [];
-			}
+      if (!memberships) {
+        return [];
+      }
 
-			return memberships.map((membership) => {
-				return {
-					userId: membership.userId,
-					email: membership.user.email,
-					role: membership.role,
-				};
-			});
-		});
-	}
+      return memberships.map((membership) => {
+        return {
+          userId: membership.userId,
+          email: membership.user.email,
+          role: membership.role,
+        };
+      });
+    });
+  }
 
-	public static metadata(id: string) {
-		return wrapRedis(Keys.Project.metadata(id), async () => {
-			const contacts = await prisma.project.findUnique({ where: { id } }).contacts({
-				where: {
-					data: {
-						not: null,
-					},
-				},
-				distinct: ["data"],
-				select: {
-					data: true,
-				},
-			});
+  public static metadata(id: string) {
+    return wrapRedis(Keys.Project.metadata(id), async () => {
+      const contacts = await prisma.project
+        .findUnique({ where: { id } })
+        .contacts({
+          where: {
+            data: {
+              not: null,
+            },
+          },
+          distinct: ["data"],
+          select: {
+            data: true,
+          },
+        });
 
-			if (!contacts) {
-				return [];
-			}
+      if (!contacts) {
+        return [];
+      }
 
-			return [...new Set(contacts.filter((c) => c.data).flatMap((c) => Object.keys(JSON.parse(c.data as string))))];
-		});
-	}
+      return [
+        ...new Set(
+          contacts
+            .filter((c) => c.data)
+            .flatMap((c) => Object.keys(JSON.parse(c.data as string)))
+        ),
+      ];
+    });
+  }
 
-	public static async feed(id: string, page: number) {
-		const itemsPerPage = 10;
-		const skip = (page - 1) * itemsPerPage;
+  public static async feed(id: string, page: number) {
+    const itemsPerPage = 10;
+    const skip = (page - 1) * itemsPerPage;
 
-		// Fetch only what we need with proper pagination
-		const triggers = await prisma.trigger.findMany({
-			where: { contact: { projectId: id } },
-			include: {
-				contact: {
-					select: {
-						id: true,
-						email: true,
-					},
-				},
-				event: {
-					select: {
-						name: true,
-					},
-				},
-				action: {
-					select: {
-						name: true,
-					},
-				},
-			},
-			orderBy: { createdAt: "desc" },
-			take: itemsPerPage * 2, // Fetch extra to ensure we have enough after merging
-		});
+    const [triggers, emails] = await Promise.all([
+      prisma.trigger.findMany({
+        where: {
+          contact: {
+            projectId: id,
+          },
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          contact: {
+            select: {
+              id: true,
+              email: true,
+            },
+          },
+          event: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: itemsPerPage,
+        skip,
+      }),
+      prisma.email.findMany({
+        where: {
+          contact: {
+            projectId: id,
+          },
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          messageId: true,
+          status: true,
+          contact: {
+            select: {
+              id: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: itemsPerPage,
+        skip,
+      }),
+    ]);
 
-		const emails = await prisma.email.findMany({
-			where: { contact: { projectId: id } },
-			include: {
-				contact: {
-					select: {
-						id: true,
-						email: true,
-					},
-				},
-			},
-			orderBy: { createdAt: "desc" },
-			take: itemsPerPage * 2, // Fetch extra to ensure we have enough after merging
-		});
+    const combined = [...triggers, ...emails];
+    combined.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-		const combined = [...triggers, ...emails];
-		combined.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return combined.slice(0, itemsPerPage);
+  }
 
-		return combined.slice(skip, skip + itemsPerPage);
-	}
+  public static usage(id: string) {
+    return wrapRedis(Keys.Project.usage(id), async () => {
+      const transactional = await prisma.email.count({
+        where: {
+          projectId: id,
+          createdAt: {
+            gte: new Date(dayjs().startOf("month").toISOString()),
+            lte: new Date(dayjs().endOf("month").toISOString()),
+          },
+        },
+      });
 
-	public static usage(id: string) {
-		return wrapRedis(Keys.Project.usage(id), async () => {
-			const transactional = await prisma.email.count({
-				where: {
-					projectId: id,
-					createdAt: {
-						gte: new Date(dayjs().startOf("month").toISOString()),
-						lte: new Date(dayjs().endOf("month").toISOString()),
-					},
-				},
-			});
+      const automation = await prisma.email.count({
+        where: {
+          action: { projectId: id },
+          createdAt: {
+            gte: new Date(dayjs().startOf("month").toISOString()),
+            lte: new Date(dayjs().endOf("month").toISOString()),
+          },
+        },
+      });
 
-			const automation = await prisma.email.count({
-				where: {
-					action: { projectId: id },
-					createdAt: {
-						gte: new Date(dayjs().startOf("month").toISOString()),
-						lte: new Date(dayjs().endOf("month").toISOString()),
-					},
-				},
-			});
+      const campaign = await prisma.email.count({
+        where: {
+          campaign: { projectId: id },
+          createdAt: {
+            gte: new Date(dayjs().startOf("month").toISOString()),
+            lte: new Date(dayjs().endOf("month").toISOString()),
+          },
+        },
+      });
 
-			const campaign = await prisma.email.count({
-				where: {
-					campaign: { projectId: id },
-					createdAt: {
-						gte: new Date(dayjs().startOf("month").toISOString()),
-						lte: new Date(dayjs().endOf("month").toISOString()),
-					},
-				},
-			});
+      return {
+        transactional,
+        automation,
+        campaign,
+      };
+    });
+  }
 
-			return {
-				transactional,
-				automation,
-				campaign,
-			};
-		});
-	}
+  public static events(id: string, triggers: boolean) {
+    return wrapRedis(Keys.Project.events(id, triggers), async () => {
+      if (triggers) {
+        return prisma.project.findUnique({ where: { id } }).events({
+          include: {
+            triggers: {
+              select: { id: true, createdAt: true, contactId: true },
+              orderBy: { createdAt: "desc" },
+              take: 100, // Limit triggers per event to prevent memory issues
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+      return prisma.project.findUnique({ where: { id } }).events({
+        orderBy: { createdAt: "desc" },
+      });
+    });
+  }
 
-	public static events(id: string, triggers: boolean) {
-		return wrapRedis(Keys.Project.events(id, triggers), async () => {
-			if (triggers) {
-				return prisma.project.findUnique({ where: { id } }).events({
-					include: {
-						triggers: {
-							select: { id: true, createdAt: true, contactId: true },
-							orderBy: { createdAt: "desc" },
-							take: 100, // Limit triggers per event to prevent memory issues
-						},
-					},
-					orderBy: { createdAt: "desc" },
-				});
-			}
-			return prisma.project.findUnique({ where: { id } }).events({
-				orderBy: { createdAt: "desc" },
-			});
-		});
-	}
+  public static actions(id: string) {
+    return wrapRedis(Keys.Project.actions(id), async () => {
+      return prisma.project.findUnique({ where: { id } }).actions({
+        include: {
+          triggers: { select: { id: true } },
+          template: true,
+          emails: { select: { id: true, status: true } },
+          tasks: { select: { id: true } },
+        },
+      });
+    });
+  }
 
-	public static actions(id: string) {
-		return wrapRedis(Keys.Project.actions(id), async () => {
-			return prisma.project.findUnique({ where: { id } }).actions({
-				include: {
-					triggers: { select: { id: true } },
-					template: true,
-					emails: { select: { id: true, status: true } },
-					tasks: { select: { id: true } },
-				},
-			});
-		});
-	}
+  public static templates(id: string) {
+    return wrapRedis(Keys.Project.templates(id), async () => {
+      return prisma.project.findUnique({ where: { id } }).templates({
+        include: { actions: true },
+        orderBy: { createdAt: "desc" },
+      });
+    });
+  }
 
-	public static templates(id: string) {
-		return wrapRedis(Keys.Project.templates(id), async () => {
-			return prisma.project.findUnique({ where: { id } }).templates({
-				include: { actions: true },
-				orderBy: { createdAt: "desc" },
-			});
-		});
-	}
+  public static campaigns(id: string) {
+    return wrapRedis(Keys.Project.campaigns(id), async () => {
+      return prisma.project.findUnique({ where: { id } }).campaigns({
+        include: {
+          emails: { select: { id: true, status: true } },
+          tasks: { select: { id: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    });
+  }
 
-	public static campaigns(id: string) {
-		return wrapRedis(Keys.Project.campaigns(id), async () => {
-			return prisma.project.findUnique({ where: { id } }).campaigns({
-				include: {
-					recipients: { select: { id: true } },
-					emails: { select: { id: true, status: true } },
-					tasks: { select: { id: true } },
-				},
-				orderBy: { createdAt: "desc" },
-			});
-		});
-	}
+  public static analytics(params: {
+    id: string;
+    method?: "week" | "month" | "year";
+  }) {
+    return wrapRedis(Keys.Project.analytics(params.id), async () => {
+      const methods = {
+        week: {
+          daysBack: 7,
+          method: "week",
+        },
+        month: {
+          daysBack: 30,
+          method: "day",
+        },
+        year: {
+          daysBack: 365,
+          method: "month",
+        },
+      };
 
-	public static analytics(params: {
-		id: string;
-		method?: "week" | "month" | "year";
-	}) {
-		return wrapRedis(Keys.Project.analytics(params.id), async () => {
-			const methods = {
-				week: {
-					daysBack: 7,
-					method: "week",
-				},
-				month: {
-					daysBack: 30,
-					method: "day",
-				},
-				year: {
-					daysBack: 365,
-					method: "month",
-				},
-			};
+      const end = dayjs().toDate();
+      const start = dayjs()
+        .subtract(methods[params.method ?? "week"].daysBack, "days")
+        .toDate();
 
-			const end = dayjs().toDate();
-			const start = dayjs()
-				.subtract(methods[params.method ?? "week"].daysBack, "days")
-				.toDate();
-
-			const contacts = await prisma.$queryRaw`
+      const contacts = await prisma.$queryRaw`
 WITH date_range AS (
     SELECT generate_series(
         (SELECT DATE_TRUNC('day', MIN("createdAt")) FROM contacts),
@@ -337,7 +361,7 @@ LIMIT 30;
       
       `;
 
-			const rawActionClicks = await prisma.$queryRaw`
+      const rawActionClicks = await prisma.$queryRaw`
 SELECT clicks."link", a."name", count(clicks.id)::int FROM clicks
 JOIN emails e on clicks."emailId" = e.id
 JOIN actions a on e."actionId" = a.id
@@ -345,120 +369,120 @@ WHERE clicks."link" NOT LIKE '%unsubscribe%' AND DATE(clicks."createdAt") BETWEE
 GROUP BY a."name", clicks."link"
       `;
 
-			const combinedRoutes = {};
+      const combinedRoutes = {};
 
-			// @ts-expect-error
-			rawActionClicks.forEach((item) => {
-				const url = new URL(item.link);
-				const route = url.pathname;
-				// @ts-expect-error
-				if (combinedRoutes[route]) {
-					// @ts-expect-error
-					combinedRoutes[route].count += item.count;
-				} else {
-					// @ts-expect-error
-					combinedRoutes[route] = {
-						link: url.hostname + route,
-						name: item.name,
-						count: item.count,
-					};
-				}
-			});
+      // @ts-expect-error
+      rawActionClicks.forEach((item) => {
+        const url = new URL(item.link);
+        const route = url.pathname;
+        // @ts-expect-error
+        if (combinedRoutes[route]) {
+          // @ts-expect-error
+          combinedRoutes[route].count += item.count;
+        } else {
+          // @ts-expect-error
+          combinedRoutes[route] = {
+            link: url.hostname + route,
+            name: item.name,
+            count: item.count,
+          };
+        }
+      });
 
-			const formattedActionClicks = Object.values(combinedRoutes).sort(
-				// @ts-expect-error
-				(a, b) => b.count - a.count,
-			);
+      const formattedActionClicks = Object.values(combinedRoutes).sort(
+        // @ts-expect-error
+        (a, b) => b.count - a.count
+      );
 
-			const subscribed = await prisma.contact.count({
-				where: { subscribed: true, projectId: params.id },
-			});
-			const unsubscribed = await prisma.contact.count({
-				where: { subscribed: false, projectId: params.id },
-			});
+      const subscribed = await prisma.contact.count({
+        where: { subscribed: true, projectId: params.id },
+      });
+      const unsubscribed = await prisma.contact.count({
+        where: { subscribed: false, projectId: params.id },
+      });
 
-			const opened = await prisma.email.count({
-				where: {
-					contact: { projectId: params.id },
-					status: "OPENED",
-				},
-			});
+      const opened = await prisma.email.count({
+        where: {
+          contact: { projectId: params.id },
+          status: "OPENED",
+        },
+      });
 
-			const openedPrev = await prisma.email.count({
-				where: {
-					contact: { projectId: params.id },
-					status: "OPENED",
-					createdAt: {
-						lte: start,
-					},
-				},
-			});
+      const openedPrev = await prisma.email.count({
+        where: {
+          contact: { projectId: params.id },
+          status: "OPENED",
+          createdAt: {
+            lte: start,
+          },
+        },
+      });
 
-			const bounced = await prisma.email.count({
-				where: {
-					contact: { projectId: params.id },
-					status: "BOUNCED",
-				},
-			});
+      const bounced = await prisma.email.count({
+        where: {
+          contact: { projectId: params.id },
+          status: "BOUNCED",
+        },
+      });
 
-			const bouncedPrev = await prisma.email.count({
-				where: {
-					contact: { projectId: params.id },
-					status: "BOUNCED",
-					createdAt: {
-						lte: start,
-					},
-				},
-			});
+      const bouncedPrev = await prisma.email.count({
+        where: {
+          contact: { projectId: params.id },
+          status: "BOUNCED",
+          createdAt: {
+            lte: start,
+          },
+        },
+      });
 
-			const complaint = await prisma.email.count({
-				where: {
-					contact: { projectId: params.id },
-					status: "COMPLAINT",
-				},
-			});
+      const complaint = await prisma.email.count({
+        where: {
+          contact: { projectId: params.id },
+          status: "COMPLAINT",
+        },
+      });
 
-			const complaintPrev = await prisma.email.count({
-				where: {
-					contact: { projectId: params.id },
-					status: "COMPLAINT",
-					createdAt: {
-						lte: start,
-					},
-				},
-			});
+      const complaintPrev = await prisma.email.count({
+        where: {
+          contact: { projectId: params.id },
+          status: "COMPLAINT",
+          createdAt: {
+            lte: start,
+          },
+        },
+      });
 
-			const total = await prisma.email.count({
-				where: {
-					contact: { projectId: params.id },
-				},
-			});
+      const total = await prisma.email.count({
+        where: {
+          contact: { projectId: params.id },
+        },
+      });
 
-			const totalPrev = await prisma.email.count({
-				where: {
-					contact: { projectId: params.id },
-					createdAt: {
-						lte: start,
-					},
-				},
-			});
+      const totalPrev = await prisma.email.count({
+        where: {
+          contact: { projectId: params.id },
+          createdAt: {
+            lte: start,
+          },
+        },
+      });
 
-			return {
-				contacts: { timeseries: contacts, subscribed, unsubscribed },
-				emails: {
-					total,
-					opened,
-					bounced,
-					complaint,
-					totalPrev,
-					bouncedPrev,
-					complaintPrev,
-					openedPrev,
-				},
-				clicks: {
-					actions: formattedActionClicks,
-				},
-			};
-		});
-	}
+      return {
+        contacts: { timeseries: contacts, subscribed, unsubscribed },
+        emails: {
+          total,
+          opened,
+          bounced,
+          complaint,
+          totalPrev,
+          bouncedPrev,
+          complaintPrev,
+          openedPrev,
+        },
+        clicks: {
+          actions: formattedActionClicks,
+        },
+      };
+    });
+  }
 }

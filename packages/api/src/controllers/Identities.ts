@@ -53,9 +53,8 @@ export class Identities {
 			throw new NotFound("project");
 		}
 
-		const existingProject = await prisma.project.findFirst({
-			where: { email: { endsWith: email.split("@")[1] } },
-		});
+		const domain = email.split('@')[1];
+		const existingProject = await prisma.project.findFirst({where: {email: {endsWith: `@${domain}`}}});
 
 		if (existingProject) {
 			throw new Error("Domain already attached to another project");
@@ -99,7 +98,12 @@ export class Identities {
 	}
 
 	@Post("update")
-	public async updateIdentities(req: Request, res: Response) {
+	public async updateIdentitiesApi(req: Request, res: Response) {
+		await (new Identities().updateIdentities());
+		return res.status(200).json({ success: true });
+	}
+
+	public async updateIdentities() {
 		const count = await prisma.project.count({
 			where: { email: { not: null } },
 		});
@@ -155,8 +159,6 @@ export class Identities {
 					await redis.del(Keys.Project.public(project.public));
 				}
 			}
-		}
-
-		return res.status(200).json({ success: true });
+		}		
 	}
 }
