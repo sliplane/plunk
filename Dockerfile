@@ -1,6 +1,8 @@
 # Base Stage
 FROM node:22.23.4-alpine AS base
 
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 COPY . .
@@ -17,7 +19,7 @@ FROM node:22.23.4-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache bash nginx
+RUN apk add --no-cache bash nginx openssl
 
 COPY --from=base /app/packages/api/dist /app/packages/api/
 COPY --from=base /app/packages/dashboard/.next /app/packages/dashboard/.next
